@@ -6,9 +6,10 @@ const app = express();
 app.use(bodyParser.json());
 app.set('sequelize', sequelize)
 app.set('models', sequelize.models)
+const { Op } = require('sequelize');
 
 /**
- * FIX ME!
+ * Get Contract By ID
  * @returns contract by id
  */
 app.get('/contracts/:id',getProfile ,async (req, res) =>{
@@ -25,4 +26,23 @@ app.get('/contracts/:id',getProfile ,async (req, res) =>{
     if(!contract) return res.status(404).end()
     res.json(contract)
 })
+
+/**
+ * Get All Contracts
+ * @returns All Contracts
+ */
+app.get('/contracts',getProfile ,async (req, res) =>{
+
+    if(req.profile.type == 'client'){
+        whereClause =  {ClientId : req.profile.id}
+    }else{
+        whereClause =  {ContractorId : req.profile.id}
+    }
+
+    const {Contract} = req.app.get('models')
+    const contract = await Contract.findAll({where: { ...whereClause, status: {[Op.not]: "terminated"}}});
+    if(!contract) return res.status(404).end()
+    res.json(contract)
+})
+
 module.exports = app;
