@@ -12,9 +12,16 @@ app.set('models', sequelize.models)
  * @returns contract by id
  */
 app.get('/contracts/:id',getProfile ,async (req, res) =>{
+
+    if(req.profile.type == 'client'){
+        whereClause =  {ClientId : req.profile.id}
+    }else{
+        whereClause =  {ContractorId : req.profile.id}
+    }
+
     const {Contract} = req.app.get('models')
     const {id} = req.params
-    const contract = await Contract.findOne({where: {id}})
+    const contract = await Contract.findOne({where: {id, ...whereClause}})
     if(!contract) return res.status(404).end()
     res.json(contract)
 })
