@@ -302,7 +302,6 @@ app.get('/admin/best-profession', async (req, res) => {
 })
 
 
-
 /**
  * Get clients the paid the most for jobs
  * @returns returns the clients the paid the most for jobs
