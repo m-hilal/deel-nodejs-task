@@ -1,101 +1,92 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const { sequelize } = require('./model')
+const { sequelize } = require('./models/model')
 const { getProfile } = require('./middleware/getProfile')
 const app = express();
 app.use(bodyParser.json());
 app.set('sequelize', sequelize)
 app.set('models', sequelize.models)
 const { Op, where } = require('sequelize');
+const ProfileService = require('./services/ProfileService');
+const ContractService = require('./services/ContractService');
+const JobService = require('./services/JobService');
 
 /**
  * Get All Profiles
  */
 app.get('/allProfiles', async (req, res) => {
-
-    const { Profile } = req.app.get('models')
-
-    const profiles = await Profile.findAll()
-    if (!profiles) return res.status(404).end()
-    res.json(profiles)
+    try {
+        const profiles = await ProfileService.getAllProfiles();
+        if (!profiles) return res.status(404).json({ error: "No Data Found" });
+        return res.status(200).json({ success: profiles });
+    } catch (error) {
+        return res.status(500).json({ error:error.message });
+    }
 })
 
 
 /**
  * Get All contracts
  */
+
 app.get('/allContracts', async (req, res) => {
-
-    const { Contract } = req.app.get('models')
-
-    const contracts = await Contract.findAll()
-    if (!contracts) return res.status(404).end()
-    res.json(contracts)
+    try {
+        const contracts = await ContractService.getAllContracts();
+        if (!contracts) return res.status(404).json({ error: "No Data Found" });
+        return res.status(200).json({ success: contracts });
+    } catch (error) {
+        return res.status(500).json({ error:error.message });
+    }
 })
+
 
 
 /**
  * Get All Jobs
  */
 app.get('/allJobs', async (req, res) => {
-
-    const { Job } = req.app.get('models')
-
-    const jobs = await Job.findAll()
-    if (!jobs) return res.status(404).end()
-    res.json(jobs)
+    try {
+        const jobs = await JobService.getAllJobs();
+        if (!jobs) return res.status(404).json({ error: "No Data Found" });
+        return res.status(200).json({ success: jobs });
+    } catch (error) {
+        return res.status(500).json({ error:error.message });
+    }
 })
 
-
-
-
-
-
-
-
-
-
+    
 /**
  * Get Contract By ID
  * @returns contract by id
  */
 app.get('/contracts/:id', getProfile, async (req, res) => {
 
-    let whereClause = '';
-
-    if (req.profile.type == 'client') {
-        whereClause = { ClientId: req.profile.id }
-    } else {
-        whereClause = { ContractorId: req.profile.id }
+    try {
+        const { id } = req.params
+        const contract = await ContractService.getContractById(id, req);
+        if (!contract) return res.status(404).json({ error: "No Data Found" });
+        return res.status(200).json({ success: contract });
+    } catch (error) {
+        return res.status(500).json({ error:error.message });
     }
-
-    const { Contract } = req.app.get('models')
-    const { id } = req.params
-    const contract = await Contract.findOne({ where: { id, ...whereClause } })
-    if (!contract) return res.status(404).end()
-    res.json(contract)
 })
 
 
 
 /**
- * Get All Contractss
- * @returns All Contracts
+ * Get All Client Contractss
+ * @returns All Client Contracts
  */
 app.get('/contracts', getProfile, async (req, res) => {
 
-    let whereClause = '';
-
-    if (req.profile.type == 'client') {
-        whereClause = { ClientId: req.profile.id }
-    } else {
-        whereClause = { ContractorId: req.profile.id }
+    try {
+        
+        const contracts = await ContractService.getAllClientContracts(req);
+        if (!contracts) return res.status(404).json({ error: "No Data Found" });
+        return res.status(200).json({ success: contracts });
+    } catch (error) {
+        return res.status(500).json({ error:error.message });
     }
-
-    const { Contract } = req.app.get('models')
-    const contract = await Contract.findAll({ where: { ...whereClause, status: { [Op.not]: "terminated" } } });
-    if (!contract) return res.status(404).end()
-    res.json(contract)
 })
 
 
@@ -262,7 +253,7 @@ app.get('/admin/best-profession', async (req, res) => {
 
 
     const { Job, Contract, Profile } = req.app.get('models')
-    const {start, end} = req.query
+    const { start, end } = req.query
 
     const professionEarnings = await Job.findAll({
         where: {
@@ -320,19 +311,19 @@ app.get('/admin/best-clients', async (req, res) => {
 
 
     const { Job, Contract, Profile } = req.app.get('models')
-    const {start, end, limit} = req.query
+    const { start, end, limit } = req.query
 
     const Clients = await Profile.findAll({
-        limit: limit||2,
-        attributes: 
-        ['id', 'firstName', 'lastName'],
+        limit: limit || 2,
+        attributes:
+            ['id', 'firstName', 'lastName'],
         where: {
             type: 'client'
         },
         include: [
             {
                 model: Contract,
-                as : 'Client',
+                as: 'Client',
                 required: true,
                 include: [
                     {
@@ -353,22 +344,22 @@ app.get('/admin/best-clients', async (req, res) => {
         ]
     }
     );
-    
+
     if (!Clients || Clients.length === 0) {
         return res.status(404).json({ error: "No data found." });
     }
-    
+
     let oResult = [];
     Clients.forEach(client => {
         let paid = 0;
         const ClientContract = client.Client;
         ClientContract.forEach(Contract => {
-            paid += Contract.Jobs.reduce((n, {price}) => n + price, 0);
+            paid += Contract.Jobs.reduce((n, { price }) => n + price, 0);
         });
         const fullName = client.firstName + client.lastName;
-        oResult.push({'id' : client.id, fullName, paid});
+        oResult.push({ 'id': client.id, fullName, paid });
     });
-    
+
     return res.json(oResult);
 })
 
